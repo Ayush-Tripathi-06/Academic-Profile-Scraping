@@ -2,7 +2,7 @@ name: Run Institute Scraper
 
 permissions:
   contents: write
-
+#trigger workflow
 on:
   push:
     branches:
