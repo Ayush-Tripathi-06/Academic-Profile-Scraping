@@ -26,10 +26,9 @@ from bs4 import BeautifulSoup
 # ------------------------------------------------------------
 # CONFIGURATION
 # ------------------------------------------------------------
-BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
-DB_DIR: str = os.path.join(BASE_DIR, "databases")
-DB_FILE: str = os.path.join(DB_DIR, "irins_institute_urls.db")
-REQUEST_TIMEOUT: int = 15
+DB_DIR = "databases"
+os.makedirs(DB_DIR, exist_ok=True)
+DB_FILE = os.path.join(DB_DIR, "irins_institute_urls.db")
 MAX_RETRIES: int = 3
 RETRY_DELAY: int = 2
 CRAWL_DELAY: float = 1.0
