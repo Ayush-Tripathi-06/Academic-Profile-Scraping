@@ -15,7 +15,7 @@ Created: 2025-10-20
 """
 
 from __future__ import annotations
-
+from datetime import datetime
 import os
 import json
 import logging
@@ -204,6 +204,14 @@ def save_to_db(records: List[Dict[str, Any]], db_file: str) -> None:
                     json.dumps(rec, ensure_ascii=False),
                 ),
             )
+	# Add a metadata table to store last run timestamp
+    	cur.execute("""
+        CREATE TABLE IF NOT EXISTS metadata (
+            last_run TEXT
+            )
+    	""")
+    	cur.execute("DELETE FROM metadata")
+    	cur.execute("INSERT INTO metadata VALUES (?)", (datetime.utcnow().isoformat(),))
 
         conn.commit()
 
