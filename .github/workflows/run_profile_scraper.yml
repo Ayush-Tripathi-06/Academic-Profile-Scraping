@@ -34,7 +34,7 @@ jobs:
       # Step 4: Run the scraper
       - name: Run scraper
         run: |
-          python databases/profile_scraper.py
+          python web-scraper/scripts/profile_scraper.py
 
       # Step 5: Verify database outputs
       - name: List generated database files
