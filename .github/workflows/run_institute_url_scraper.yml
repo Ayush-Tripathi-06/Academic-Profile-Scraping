@@ -6,7 +6,7 @@ on:
     branches:
       - main       
   schedule:
-    - cron: "0 6 * * *"  
+    - cron: "0 6 * * *"  # runs daily at 6:00 UTC
 
 jobs:
   run-scraper:
@@ -31,7 +31,7 @@ jobs:
           python web-scraper/scripts/institute_url_scraper.py
 
       - name: Upload database artifact
-        uses: actions/upload-artifact@v4   # ← fixed
+        uses: actions/upload-artifact@v4
         with:
           name: irins-database
-          path: web-scraper/databases/irins_institute_urls.db
+          path: databases/irins_institute_urls.db   # relative path, matches scraper
