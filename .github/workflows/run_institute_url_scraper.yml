@@ -37,5 +37,5 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "Update IRINS database"
-          file_patterns: "databases/irins_institute_urls.db"
+          file_pattern: "databases/irins_institute_urls.db"
           branch: main
