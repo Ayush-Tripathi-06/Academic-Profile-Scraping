@@ -3,50 +3,42 @@ name: Run Institute Scraper
 on:
   push:
     branches:
-      - main       
+      - main
   schedule:
-    - cron: "0 6 * * *"  # runs daily at 6:00 UTC
+    - cron: "0 6 * * *"
 
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests
 
-      # Run scraper
       - name: Run scraper
         run: |
           python web-scraper/scripts/institute_url_scraper.py
 
-      # Upload database as artifact
       - name: Upload database artifact
         uses: actions/upload-artifact@v4
         with:
           name: irins-database
           path: databases/irins_institute_urls.db
 
-      # Commit database back to repo
-      - name: Commit database to repository
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@github.com"
-          git add databases/irins_institute_urls.db
-          git diff --cached --quiet || git commit -m "Update IRINS database"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push database to repo
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+          force: false
+          directory: databases
