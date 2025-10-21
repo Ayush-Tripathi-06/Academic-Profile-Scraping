@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       batch_num:
-        description: 'Batch number to run'
+        description: 'Batch number to run manually (overrides matrix)'
         required: false
-        default: '0'
+        default: ''
   schedule:
     - cron: "0 6 * * *"   # Runs daily at 6:00 UTC
 
@@ -17,41 +17,38 @@ permissions:
   contents: write
 
 jobs:
-  run-profile-scraper:
+  run-batches:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        batch: [0, 1, 2, 3, 4, 5]
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # Step 3: Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
 
-      # Step 4: Run the scraper with batch number
       - name: Run scraper
         env:
-          BATCH_NUM: ${{ github.event.inputs.batch_num || '0' }}
+          BATCH_OVERRIDE: ${{ github.event.inputs.batch_num }}
         run: |
+          BATCH_NUM=${BATCH_OVERRIDE:-${{ matrix.batch }}}
           echo "Running batch number: $BATCH_NUM"
           python web-scraper/scripts/profile_scraper.py $BATCH_NUM
 
-      # Step 5: Verify database outputs
       - name: List generated database files
         run: |
           echo "Databases generated:"
           ls -lh databases/*.db || echo "No databases found."
 
-      # Step 6: Commit and push all database files
       - name: Commit and push all updated DBs
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
