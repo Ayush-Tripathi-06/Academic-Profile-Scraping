@@ -29,7 +29,7 @@ import requests
 # Configuration
 # -------------------------------------------------------------------
 PAGE_URL: str = "https://irins.inflibnet.ac.in/instances"
-DB_FILE: str = "irins_institute_urls.db"
+DB_FILE: str = "databases/irins_institute_urls.db"
 
 TARGET_CATEGORIES: set[str] = {
     "IITs & IISc",
