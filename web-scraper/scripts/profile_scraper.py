@@ -26,6 +26,7 @@ from bs4 import BeautifulSoup
 # ------------------------------------------------------------
 # CONFIGURATION
 # ------------------------------------------------------------
+BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
 DB_DIR = "databases"
 os.makedirs(DB_DIR, exist_ok=True)
 DB_FILE = os.path.join(DB_DIR, "irins_institute_urls.db")
