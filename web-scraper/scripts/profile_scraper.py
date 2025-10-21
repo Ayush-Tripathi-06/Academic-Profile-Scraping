@@ -29,6 +29,7 @@ from bs4 import BeautifulSoup
 DB_DIR = "databases"
 os.makedirs(DB_DIR, exist_ok=True)
 DB_FILE = os.path.join(DB_DIR, "irins_institute_urls.db")
+REQUEST_TIMEOUT: int = 15
 MAX_RETRIES: int = 3
 RETRY_DELAY: int = 2
 CRAWL_DELAY: float = 1.0
