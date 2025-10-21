@@ -26,10 +26,11 @@ from bs4 import BeautifulSoup
 # ------------------------------------------------------------
 # CONFIGURATION
 # ------------------------------------------------------------
-BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
-DB_DIR = "databases"
+# Define repository root and database paths
+REPO_ROOT: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DB_DIR: str = os.path.join(REPO_ROOT, "databases")
 os.makedirs(DB_DIR, exist_ok=True)
-DB_FILE = os.path.join(DB_DIR, "irins_institute_urls.db")
+DB_FILE: str = os.path.join(DB_DIR, "irins_institute_urls.db")
 REQUEST_TIMEOUT: int = 15
 MAX_RETRIES: int = 3
 RETRY_DELAY: int = 2
