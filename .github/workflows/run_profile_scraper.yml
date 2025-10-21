@@ -55,3 +55,5 @@ jobs:
           commit_message: "Update IRINS databases (auto)"
           file_pattern: "databases/*.db"
           branch: main
+          push: true
+          push_force: true   # <- ensures the push succeeds even if remote has diverged
