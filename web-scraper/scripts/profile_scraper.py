@@ -262,7 +262,7 @@ def crawl_institute(inst: Institute) -> None:
     logger.info("Processing institute: %s (%s)", inst.name, inst.url)
     safe_name = safe_filename(inst.name)
     profiles_db = os.path.join(DB_DIR, f"{safe_name}.db")
-    data_db = os.path.join(DB_DIR, "databases", f"{safe_name}_profiles.db")
+    data_db = os.path.join(DB_DIR, f"{safe_name}_profiles.db")
 
     # Fetch departments
     html = fetch_html(inst.url)
