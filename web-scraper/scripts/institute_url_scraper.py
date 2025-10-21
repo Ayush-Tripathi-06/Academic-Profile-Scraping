@@ -16,6 +16,7 @@ Created: 2025-10-20
 
 from __future__ import annotations
 
+import os
 import json
 import logging
 import re
@@ -39,11 +40,13 @@ TARGET_CATEGORIES: set[str] = {
     "IISERs",
 }
 
+# Structured and consistent logging setup
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+logger = logging.getLogger("IRINS_Scraper")
 
 # -------------------------------------------------------------------
 # Core Functions
@@ -61,13 +64,13 @@ def fetch_page(url: str, timeout: int = 30) -> str:
     Raises:
         requests.RequestException: If a network or HTTP error occurs.
     """
-    logging.info("Fetching page: %s", url)
+    logger.info("Fetching page: %s", url)
     try:
         response = requests.get(url, timeout=timeout)
         response.raise_for_status()
         return response.text
     except requests.RequestException as exc:
-        logging.error("Failed to fetch page from %s: %s", url, exc)
+        logger.error("Failed to fetch page from %s: %s", url, exc)
         raise
 
 
@@ -103,10 +106,10 @@ def extract_json_from_scripts(html: str) -> Optional[List[Dict[str, Any]]]:
             try:
                 return json.loads(cleaned)
             except json.JSONDecodeError:
-                logging.warning("Failed to decode JSON using pattern: %s", pattern)
+                logger.warning("Failed to decode JSON using pattern: %s", pattern)
                 continue
 
-    logging.error("No valid JSON block found in page scripts.")
+    logger.error("No valid JSON block found in page scripts.")
     return None
 
 
@@ -149,60 +152,62 @@ def save_to_db(records: List[Dict[str, Any]], db_file: str) -> None:
         db_file (str): Output SQLite database file path.
     """
     if not records:
-        logging.warning("No records to save. Database creation skipped.")
+        logger.warning("No records to save. Database creation skipped.")
         return
 
-    logging.info("Saving %d records to database: %s", len(records), db_file)
-    conn = sqlite3.connect(db_file)
-    cur = conn.cursor()
+    logger.info("Saving %d records to database: %s", len(records), db_file)
+    os.makedirs(os.path.dirname(db_file) or ".", exist_ok=True)
 
-    cur.execute("DROP TABLE IF EXISTS institutes")
+    # Use context manager for safe DB handling
+    with sqlite3.connect(db_file) as conn:
+        cur = conn.cursor()
 
-    cur.execute("""
-        CREATE TABLE institutes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uname TEXT,
-            institute_id TEXT,
-            institute_name TEXT,
-            org_type TEXT,
-            district TEXT,
-            state TEXT,
-            latitude TEXT,
-            longitude TEXT,
-            logo_path TEXT,
-            irins_url TEXT,
-            raw_json TEXT
-        )
-    """)
+        cur.execute("DROP TABLE IF EXISTS institutes")
+        cur.execute("""
+            CREATE TABLE institutes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                uname TEXT,
+                institute_id TEXT,
+                institute_name TEXT,
+                org_type TEXT,
+                district TEXT,
+                state TEXT,
+                latitude TEXT,
+                longitude TEXT,
+                logo_path TEXT,
+                irins_url TEXT,
+                raw_json TEXT
+            )
+        """)
 
-    insert_query = """
-        INSERT INTO institutes
-        (uname, institute_id, institute_name, org_type, district, state,
-         latitude, longitude, logo_path, irins_url, raw_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """
+        insert_query = """
+            INSERT INTO institutes
+            (uname, institute_id, institute_name, org_type, district, state,
+             latitude, longitude, logo_path, irins_url, raw_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
 
-    for rec in records:
-        cur.execute(
-            insert_query,
-            (
-                rec.get("uname"),
-                rec.get("institute_id"),
-                rec.get("institute_name"),
-                rec.get("org_type"),
-                rec.get("district"),
-                rec.get("state"),
-                rec.get("lattitude") or rec.get("latitude"),
-                rec.get("longitude"),
-                rec.get("logo_path"),
-                rec.get("irins_url"),
-                json.dumps(rec, ensure_ascii=False),
-            ),
-        )
+        for rec in records:
+            cur.execute(
+                insert_query,
+                (
+                    rec.get("uname"),
+                    rec.get("institute_id"),
+                    rec.get("institute_name"),
+                    rec.get("org_type"),
+                    rec.get("district"),
+                    rec.get("state"),
+                    rec.get("lattitude") or rec.get("latitude"),
+                    rec.get("longitude"),
+                    rec.get("logo_path"),
+                    rec.get("irins_url"),
+                    json.dumps(rec, ensure_ascii=False),
+                ),
+            )
 
-    conn.commit()
-    conn.close()
-    logging.info("Database successfully saved with %d records.", len(records))
+        conn.commit()
+
+    logger.info("Database successfully saved with %d records.", len(records))
 
 
 # -------------------------------------------------------------------
@@ -210,25 +215,26 @@ def save_to_db(records: List[Dict[str, Any]], db_file: str) -> None:
 # -------------------------------------------------------------------
 def main() -> None:
     """Execute the full scraping and data storage workflow."""
-    logging.info("Starting IRINS institute scraper...")
+    logger.info("Starting IRINS institute scraper...")
 
     try:
         html = fetch_page(PAGE_URL)
         json_data = extract_json_from_scripts(html)
 
         if not json_data:
-            logging.error("No JSON data extracted from the page.")
+            logger.error("No JSON data extracted from the page.")
             return
 
         filtered_records = normalize_data(json_data)
-        logging.info("Filtered %d institutes matching target categories.", len(filtered_records))
+        logger.info("Filtered %d institutes matching target categories.", len(filtered_records))
         save_to_db(filtered_records, DB_FILE)
 
     except Exception as exc:
-        logging.exception("Unexpected error during scraping: %s", exc)
+        logger.exception("Unexpected error during scraping: %s", exc)
 
-    logging.info("IRINS scraping process completed.")
+    logger.info("IRINS scraping process completed.")
 
 
 if __name__ == "__main__":
+    logger.info("Running IRINS scraper as main module.")
     main()
