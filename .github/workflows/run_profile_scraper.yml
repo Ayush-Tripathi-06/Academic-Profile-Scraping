@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      batch_num:
+        description: 'Batch number to run'
+        required: false
+        default: '0'
   schedule:
     - cron: "0 6 * * *"   # Runs daily at 6:00 UTC
 
@@ -31,10 +37,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
 
-      # Step 4: Run the scraper
+      # Step 4: Run the scraper with batch number
       - name: Run scraper
+        env:
+          BATCH_NUM: ${{ github.event.inputs.batch_num || '0' }}
         run: |
-          python web-scraper/scripts/profile_scraper.py
+          echo "Running batch number: $BATCH_NUM"
+          python web-scraper/scripts/profile_scraper.py $BATCH_NUM
 
       # Step 5: Verify database outputs
       - name: List generated database files

@@ -12,8 +12,10 @@ Date: 2025-10-21
 """
 
 from __future__ import annotations
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import logging
+import sys
 import re
 import sqlite3
 import time
@@ -35,6 +37,9 @@ REQUEST_TIMEOUT: int = 15
 MAX_RETRIES: int = 3
 RETRY_DELAY: int = 2
 CRAWL_DELAY: float = 1.0
+MAX_THREADS = 4  
+PROFILE_DELAY = 0.3  
+
 
 # ------------------------------------------------------------
 # LOGGING CONFIGURATION
@@ -91,6 +96,15 @@ def fetch_html(url: str, retries: int = MAX_RETRIES, timeout: int = REQUEST_TIME
             time.sleep(RETRY_DELAY)
     logger.error("Failed to fetch URL after %d retries: %s", retries, url)
     return None
+
+def fetch_and_store_profile(url: str, data_db: str) -> None:
+    """Fetch profile page and store in database (used in threads)."""
+    html = fetch_html(url)
+    if html:
+        data = parse_irins_profile(html)
+        with create_connection(data_db) as conn:
+            insert_profile_data(conn, data)
+        time.sleep(PROFILE_DELAY)  # polite delay per thread
 
 
 # ------------------------------------------------------------
@@ -379,15 +393,17 @@ def crawl_institute(inst: Institute) -> None:
         """)
         conn.commit()
 
-        for i, url in enumerate(profile_urls, 1):
-            logger.info("[%d/%d] Fetching %s", i, len(profile_urls), url)
-            html = fetch_html(url)
-            if not html:
-                continue
-            data = parse_irins_profile(html)
-            insert_profile_data(conn, data)
-            logger.info("Stored profile: %s (%s)", data.name, data.vidwan_id)
-            time.sleep(CRAWL_DELAY)
+        logger.info("Fetching %d profiles using %d threads...", len(profile_urls), MAX_THREADS)
+        with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+            futures = {executor.submit(fetch_and_store_profile, url, data_db): url for url in profile_urls}
+            for i, future in enumerate(as_completed(futures), 1):
+                url = futures[future]
+                try:
+                    future.result()
+                    logger.info("[%d/%d] Stored profile from %s", i, len(profile_urls), url)
+                except Exception as e:
+                    logger.error("Failed profile %s: %s", url, e)
+
     logger.info("Completed data extraction for %s", inst.name)
 
 
@@ -423,8 +439,20 @@ def insert_profile_data(conn: sqlite3.Connection, data: ProfileData) -> None:
 def main() -> None:
     institutes = fetch_institutes(DB_FILE)
     logger.info("Found %d institutes with valid IRINS URLs", len(institutes))
-    for inst in institutes:
+
+    # Get batch number and size from command line arguments
+    batch_size = 50
+    batch_num = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+
+    start_idx = batch_num * batch_size
+    end_idx = start_idx + batch_size
+    batch_institutes = institutes[start_idx:end_idx]
+
+    logger.info("Processing batch %d: institutes %d to %d", batch_num, start_idx + 1, min(end_idx, len(institutes)))
+
+    for inst in batch_institutes:
         crawl_institute(inst)
+
 
 
 if __name__ == "__main__":
