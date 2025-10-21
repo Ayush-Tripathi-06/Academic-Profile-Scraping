@@ -204,14 +204,18 @@ def save_to_db(records: List[Dict[str, Any]], db_file: str) -> None:
                     json.dumps(rec, ensure_ascii=False),
                 ),
             )
-	# Add a metadata table to store last run timestamp
-    	cur.execute("""
-        CREATE TABLE IF NOT EXISTS metadata (
-            last_run TEXT
+
+        # Add a metadata table to store last run timestamp
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS metadata (
+                last_run TEXT
             )
-    	""")
-    	cur.execute("DELETE FROM metadata")
-    	cur.execute("INSERT INTO metadata VALUES (?)", (datetime.utcnow().isoformat(),))
+        """)
+        cur.execute("DELETE FROM metadata")
+        cur.execute(
+            "INSERT INTO metadata VALUES (?)",
+            (datetime.utcnow().isoformat(),)
+        )
 
         conn.commit()
 
@@ -234,7 +238,10 @@ def main() -> None:
             return
 
         filtered_records = normalize_data(json_data)
-        logger.info("Filtered %d institutes matching target categories.", len(filtered_records))
+        logger.info(
+            "Filtered %d institutes matching target categories.",
+            len(filtered_records)
+        )
         save_to_db(filtered_records, DB_FILE)
 
     except Exception as exc:
