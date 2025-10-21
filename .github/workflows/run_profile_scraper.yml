@@ -1,0 +1,51 @@
+name: Run Institute Scraper
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 6 * * *"   # Runs daily at 6:00 UTC
+
+permissions:
+  contents: write
+
+jobs:
+  run-profile-scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
+
+      # Step 4: Run the scraper
+      - name: Run scraper
+        run: |
+          python databases/profile_scraper.py
+
+      # Step 5: Verify database outputs
+      - name: List generated database files
+        run: |
+          echo "Databases generated:"
+          ls -lh databases/*.db || echo "No databases found."
+
+      # Step 6: Commit and push all database files
+      - name: Commit and push all updated DBs
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Update IRINS databases (auto)"
+          file_pattern: "databases/*.db"
+          branch: main
