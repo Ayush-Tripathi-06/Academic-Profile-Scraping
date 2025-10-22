@@ -38,8 +38,12 @@ jobs:
         env:
           OPENCAGE_KEYS: ${{ secrets.OPENCAGE_KEYS }}
         run: |
-          echo "Running geocoder for organization type: ${{ github.event.inputs.org_type }}"
-          python web-scraper/scripts/update_geolocation.py --org-type "${{ github.event.inputs.org_type }}"
+          ORG_TYPE="${{ github.event.inputs.org_type }}"
+          if [ -z "$ORG_TYPE" ]; then
+            ORG_TYPE="IITs & IISc"
+          fi
+          echo "Running geocoder for organization type: $ORG_TYPE"
+          python web-scraper/scripts/update_geolocation.py --org-type "$ORG_TYPE"
 
       - name: List updated database files
         run: |
