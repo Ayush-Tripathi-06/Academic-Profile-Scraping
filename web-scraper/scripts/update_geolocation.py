@@ -98,6 +98,7 @@ def ensure_geo_columns(conn: sqlite3.Connection):
 # ------------------------------------------------------------
 # OPENCAGE API LOGIC
 # ------------------------------------------------------------
+
 def geocode_institution(name: str, api_key: str) -> Optional[dict]:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -107,45 +108,29 @@ def geocode_institution(name: str, api_key: str) -> Optional[dict]:
                 return {"quota_exceeded": True}
             r.raise_for_status()
             data = r.json()
-            if data["results"]:
+            if data.get("results"):
                 res = data["results"][0]
-                components = res.get("components", {})
-                geometry = res.get("geometry", {})
+                components = res.get("components") or {}
+                geometry = res.get("geometry") or {}
+                # safe extraction
+                country = components.get("country") or None
+                state = components.get("state") or None
+                city = components.get("city") or components.get("town") or components.get("village") or None
                 return {
-                    "country": components.get("country"),  # None if missing
-                    "state": components.get("state"),
-                    "city": components.get("city") or components.get("town") or components.get("village"),
+                    "country": country,
+                    "state": state,
+                    "city": city,
                     "latitude": geometry.get("lat"),
                     "longitude": geometry.get("lng"),
                     "full_address": res.get("formatted"),
                 }
-            return {
-                "country": None,
-                "state": None,
-                "city": None,
-                "latitude": None,
-                "longitude": None,
-                "full_address": None,
-            }
+            return {k: None for k in ["country","state","city","latitude","longitude","full_address"]}
         except requests.RequestException as e:
             logger.warning("Retry %d for %s: %s", attempt, name, e)
             time.sleep(2)
-    return {
-        "country": None,
-        "state": None,
-        "city": None,
-        "latitude": None,
-        "longitude": None,
-        "full_address": None,
-    }
-
-
-def rotate_key(idx: int) -> int:
-    return (idx + 1) % len(API_KEYS)
-
-# ------------------------------------------------------------
-# SINGLE INSTITUTE DB UPDATE (sequentially)
-# ------------------------------------------------------------
+    # if all retries fail
+    return {k: None for k in ["country","state","city","latitude","longitude","full_address"]}
+    
 # ------------------------------------------------------------
 # SINGLE INSTITUTE DB UPDATE (sequentially)
 # ------------------------------------------------------------
