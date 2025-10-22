@@ -223,6 +223,46 @@ def save_to_db(records: List[Dict[str, Any]], db_file: str) -> None:
 
 
 # -------------------------------------------------------------------
+# New Function: Add Latitude and Longitude Columns to Existing Table
+# -------------------------------------------------------------------
+
+def add_lat_lon_columns(db_file: str) -> None:
+    """Add latitude and longitude columns to the 'institutes' table and populate them from raw_json."""
+    logger.info("Adding latitude and longitude columns to 'institutes' table (if not present)...")
+
+    with sqlite3.connect(db_file) as conn:
+        cur = conn.cursor()
+
+        cur.execute("PRAGMA table_info(institutes)")
+        columns = [row[1] for row in cur.fetchall()]
+
+        if "latitude" not in columns:
+            cur.execute("ALTER TABLE institutes ADD COLUMN latitude TEXT")
+        if "longitude" not in columns:
+            cur.execute("ALTER TABLE institutes ADD COLUMN longitude TEXT")
+
+        cur.execute("SELECT rowid, raw_json FROM institutes")
+        rows = cur.fetchall()
+
+        for rowid, raw_json in rows:
+            try:
+                data = json.loads(raw_json)
+                lat = data.get("lattitude") or data.get("latitude")
+                lon = data.get("longitude")
+                if lat or lon:
+                    cur.execute(
+                        "UPDATE institutes SET latitude = ?, longitude = ? WHERE rowid = ?",
+                        (lat, lon, rowid),
+                    )
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON for row {rowid}, skipping...")
+
+        conn.commit()
+
+    logger.info("Latitude and longitude columns successfully added and populated.")
+
+
+# -------------------------------------------------------------------
 # Entry Point
 # -------------------------------------------------------------------
 def main() -> None:
@@ -243,6 +283,7 @@ def main() -> None:
             len(filtered_records)
         )
         save_to_db(filtered_records, DB_FILE)
+        add_lat_lon_columns(DB_FILE)
 
     except Exception as exc:
         logger.exception("Unexpected error during scraping: %s", exc)
