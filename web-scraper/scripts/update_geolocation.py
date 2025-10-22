@@ -230,7 +230,7 @@ def update_all_institutes(org_type: str):
         return
 
     # ---- Define number of threads ----
-    n_threads = min(len(API_KEYS), 8)
+    n_threads = len(API_KEYS)
 
     with ThreadPoolExecutor(max_workers=n_threads) as executor:
         futures = {executor.submit(update_institute_db, name): name for name in institutes}
