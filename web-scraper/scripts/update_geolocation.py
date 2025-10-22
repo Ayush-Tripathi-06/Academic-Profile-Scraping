@@ -146,6 +146,9 @@ def rotate_key(idx: int) -> int:
 # ------------------------------------------------------------
 # SINGLE INSTITUTE DB UPDATE (sequentially)
 # ------------------------------------------------------------
+# ------------------------------------------------------------
+# SINGLE INSTITUTE DB UPDATE (sequentially)
+# ------------------------------------------------------------
 def update_institute_db(institute_name: str):
     safe_name = safe_filename(institute_name)
     db_path = os.path.join(DB_DIR, f"{safe_name}_profiles.db")
@@ -167,23 +170,24 @@ def update_institute_db(institute_name: str):
 
         for inst in institutions:
             try:
-                geo = geocode_institution(inst, API_KEYS[key_idx])
+                # Clean institution name for OpenCage query
+                query_name = inst.replace(",", "").strip()
+                geo = geocode_institution(query_name, API_KEYS[key_idx])
+                logger.debug("Geocode result for %s: %s", query_name, geo)
 
                 # If quota exceeded, rotate key and retry
                 if geo == {"quota_exceeded": True}:
                     key_idx = rotate_key(key_idx)
-                    geo = geocode_institution(inst, API_KEYS[key_idx])
+                    geo = geocode_institution(query_name, API_KEYS[key_idx])
+                    logger.debug("Retry Geocode result for %s: %s", query_name, geo)
 
-                # Make sure geo is a dict
+                # Make sure geo is a dict with all keys
                 if not isinstance(geo, dict):
-                    geo = {
-                        "country": None,
-                        "state": None,
-                        "city": None,
-                        "latitude": None,
-                        "longitude": None,
-                        "full_address": None,
-                    }
+                    geo = {k: None for k in ["country","state","city","latitude","longitude","full_address"]}
+                else:
+                    # Fill missing keys with None
+                    for k in ["country","state","city","latitude","longitude","full_address"]:
+                        geo.setdefault(k, None)
 
                 cur.execute(
                     """
@@ -211,6 +215,8 @@ def update_institute_db(institute_name: str):
             time.sleep(REQUEST_DELAY)
 
         logger.info("Completed %s — %d institutions updated.", institute_name, updated)
+
+
 
 
 
