@@ -109,21 +109,36 @@ def geocode_institution(name: str, api_key: str) -> Optional[dict]:
             data = r.json()
             if data["results"]:
                 res = data["results"][0]
-                components = res["components"]
-                geometry = res["geometry"]
+                components = res.get("components", {})
+                geometry = res.get("geometry", {})
                 return {
-                    "country": components.get("country"),
+                    "country": components.get("country"),  # None if missing
                     "state": components.get("state"),
                     "city": components.get("city") or components.get("town") or components.get("village"),
                     "latitude": geometry.get("lat"),
                     "longitude": geometry.get("lng"),
                     "full_address": res.get("formatted"),
                 }
-            return None
+            return {
+                "country": None,
+                "state": None,
+                "city": None,
+                "latitude": None,
+                "longitude": None,
+                "full_address": None,
+            }
         except requests.RequestException as e:
             logger.warning("Retry %d for %s: %s", attempt, name, e)
             time.sleep(2)
-    return None
+    return {
+        "country": None,
+        "state": None,
+        "city": None,
+        "latitude": None,
+        "longitude": None,
+        "full_address": None,
+    }
+
 
 def rotate_key(idx: int) -> int:
     return (idx + 1) % len(API_KEYS)
@@ -152,11 +167,13 @@ def update_institute_db(institute_name: str):
 
         for inst in institutions:
             geo = geocode_institution(inst, API_KEYS[key_idx])
+
+            # If quota exceeded, rotate key and retry
             if geo == {"quota_exceeded": True}:
                 key_idx = rotate_key(key_idx)
                 geo = geocode_institution(inst, API_KEYS[key_idx])
 
-            if geo:
+            if geo and geo != {"quota_exceeded": True}:
                 cur.execute(
                     """
                     UPDATE qualification
@@ -164,19 +181,25 @@ def update_institute_db(institute_name: str):
                     WHERE institution=?;
                     """,
                     (
-                        geo["country"], geo["state"], geo["city"],
-                        geo["latitude"], geo["longitude"], geo["full_address"], inst,
+                        geo.get("country"),
+                        geo.get("state"),
+                        geo.get("city"),
+                        geo.get("latitude"),
+                        geo.get("longitude"),
+                        geo.get("full_address"),
+                        inst,
                     ),
                 )
                 conn.commit()
                 updated += 1
                 logger.info("Updated %s (%s)", inst, institute_name)
             else:
-                logger.info("No result for %s", inst)
+                logger.info("No geolocation found for %s", inst)
 
             time.sleep(REQUEST_DELAY)
 
         logger.info("Completed %s — %d institutions updated.", institute_name, updated)
+
 
 # ------------------------------------------------------------
 # MULTITHREADING AT *_profiles.db LEVEL
