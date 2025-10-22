@@ -42,7 +42,7 @@ jobs:
           OPENCAGE_KEYS: ${{ secrets.OPENCAGE_KEYS }}
         run: |
           echo "Running geocoder for organization type: ${{ github.event.inputs.org_type }}"
-          python your_script_path/opencage_updater.py --org-type "${{ github.event.inputs.org_type }}"
+          python web-scraper/scripts/update_geolocation.py --org-type "${{ github.event.inputs.org_type }}"
 
       - name: List updated database files
         run: |
