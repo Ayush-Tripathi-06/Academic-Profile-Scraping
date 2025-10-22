@@ -7,12 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       org_type:
-        description: 'Select organization type to run'
+        description: 'Organization type to run (e.g., IITs & IISc)'
         required: true
         default: 'IITs & IISc'
-        type: choice
-        options:
-          - 'IITs & IISc'
   schedule:
     - cron: "0 6 * * *"   # Runs daily at 6:00 UTC
 
