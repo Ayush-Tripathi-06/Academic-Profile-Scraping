@@ -166,14 +166,25 @@ def update_institute_db(institute_name: str):
         updated = 0
 
         for inst in institutions:
-            geo = geocode_institution(inst, API_KEYS[key_idx])
-
-            # If quota exceeded, rotate key and retry
-            if geo == {"quota_exceeded": True}:
-                key_idx = rotate_key(key_idx)
+            try:
                 geo = geocode_institution(inst, API_KEYS[key_idx])
 
-            if geo and geo != {"quota_exceeded": True}:
+                # If quota exceeded, rotate key and retry
+                if geo == {"quota_exceeded": True}:
+                    key_idx = rotate_key(key_idx)
+                    geo = geocode_institution(inst, API_KEYS[key_idx])
+
+                # Make sure geo is a dict
+                if not isinstance(geo, dict):
+                    geo = {
+                        "country": None,
+                        "state": None,
+                        "city": None,
+                        "latitude": None,
+                        "longitude": None,
+                        "full_address": None,
+                    }
+
                 cur.execute(
                     """
                     UPDATE qualification
@@ -193,12 +204,14 @@ def update_institute_db(institute_name: str):
                 conn.commit()
                 updated += 1
                 logger.info("Updated %s (%s)", inst, institute_name)
-            else:
-                logger.info("No geolocation found for %s", inst)
+
+            except Exception as e:
+                logger.error("Error updating %s: %s", inst, e)
 
             time.sleep(REQUEST_DELAY)
 
         logger.info("Completed %s — %d institutions updated.", institute_name, updated)
+
 
 
 # ------------------------------------------------------------
