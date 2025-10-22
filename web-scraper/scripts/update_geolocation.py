@@ -95,6 +95,19 @@ def ensure_geo_columns(conn: sqlite3.Connection):
             cur.execute(f"ALTER TABLE qualification ADD COLUMN {col} {typ}")
     conn.commit()
 
+def rotate_key(current_index: int) -> int:
+    """
+    Rotate to the next OpenCage API key index. 
+    If all keys are exhausted, waits and retries later.
+    """
+    next_index = (current_index + 1) % len(API_KEYS)
+    if next_index == 0:
+        logger.warning("All OpenCage API keys may be exhausted — waiting 1 hour before retrying.")
+        time.sleep(3600)
+    logger.warning("Rotating to next OpenCage API key (index %d)", next_index)
+    return next_index
+
+
 # ------------------------------------------------------------
 # OPENCAGE API LOGIC
 # ------------------------------------------------------------
