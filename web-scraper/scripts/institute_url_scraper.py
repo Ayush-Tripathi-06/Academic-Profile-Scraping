@@ -7,11 +7,6 @@ Fetches institute data from the IRINS portal, filters by
 specific categories (IITs, NITs, IIMs, IISERs, R&D Institutions, Other INIs),
 and stores the results in a fresh SQLite database.
 
-Example:
-    $ python scraper.py
-
-Author: Ayush Tripathi
-Created: 2025-10-20
 """
 
 from __future__ import annotations

@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 """
-Update Qualification Location Data using OpenCage API
+Update geolocation data using OpenCage API.
 
-This script updates *_profiles.db databases by adding geolocation data
-(country, state, city, latitude, longitude, and full address)
-to the qualification table.
+This script updates *_profiles.db databases by adding geolocation
+(country, state, city, latitude, longitude, full_address) to the
+qualification table for institutions.
 
-It reads institute list from irins_institute_urls.db filtered by org_type,
-and geocodes using OpenCage API keys loaded securely from environment
-variables or a local text file (never committed).
-
-Author: Ayush Tripathi
-Date: 2025-10-22
+API keys are loaded securely from environment variables.
 """
 
 import os
@@ -28,40 +23,43 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # ------------------------------------------------------------
 load_dotenv()
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-DB_DIR = os.path.join(REPO_ROOT, "databases")
-CENTRAL_DB = os.path.join(DB_DIR, "irins_institute_urls.db")
+DB_DIR = os.path.join(os.path.dirname(__file__), "databases")
+CENTRAL_DB = os.path.join(DB_DIR, "institute_urls.db")
 
-# ---- Load OpenCage API Keys Safely ----
+REQUEST_DELAY = 1.0  # seconds between API calls
+MAX_RETRIES = 3
+OPENCAGE_URL = "https://api.opencagedata.com/geocode/v1/json"
+
+# ------------------------------------------------------------
+# API KEYS
+# ------------------------------------------------------------
 def load_api_keys() -> List[str]:
     env_keys = os.getenv("OPENCAGE_KEYS")
     if env_keys:
         return [k.strip() for k in env_keys.split(",") if k.strip()]
-    keys_file = os.path.join(REPO_ROOT, "opencage_keys.txt")
+    keys_file = os.path.join(DB_DIR, "opencage_keys.txt")
     if os.path.exists(keys_file):
         with open(keys_file, "r") as f:
             return [line.strip() for line in f if line.strip()]
-    raise RuntimeError(
-        "No API keys found. Set OPENCAGE_KEYS in .env or create opencage_keys.txt (one key per line)."
-    )
+    raise RuntimeError("No OpenCage API keys found. Set OPENCAGE_KEYS or create opencage_keys.txt.")
 
 API_KEYS = load_api_keys()
-OPENCAGE_URL = "https://api.opencagedata.com/geocode/v1/json"
-REQUEST_DELAY = 1.0
-MAX_RETRIES = 3
 
-# ---- Logging ----
+# ------------------------------------------------------------
+# LOGGING
+# ------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger("opencage_updater")
+logger = logging.getLogger("geocode_updater")
 
 # ------------------------------------------------------------
 # DATABASE UTILITIES
 # ------------------------------------------------------------
 def safe_filename(name: str) -> str:
+    """Make a safe filename from an institution name."""
     return "".join(c if c.isalnum() or c in " _-" else "_" for c in name)
 
 def create_connection(path: str) -> sqlite3.Connection:
@@ -70,19 +68,21 @@ def create_connection(path: str) -> sqlite3.Connection:
     return conn
 
 def fetch_institutes_by_type(org_type: str) -> List[str]:
+    """Return a list of institutes of a given type with non-empty URLs."""
     with sqlite3.connect(CENTRAL_DB) as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT institute_name FROM institutes WHERE org_type = ? AND irins_url IS NOT NULL",
+            "SELECT institute_name FROM institutes WHERE org_type = ? AND url IS NOT NULL",
             (org_type,),
         )
         return [r[0] for r in cur.fetchall()]
 
 def ensure_geo_columns(conn: sqlite3.Connection):
+    """Ensure that qualification table has required geolocation columns."""
     cur = conn.cursor()
     cur.execute("PRAGMA table_info(qualification)")
     existing = [r[1] for r in cur.fetchall()]
-    new_cols = [
+    columns = [
         ("country", "TEXT"),
         ("state", "TEXT"),
         ("city", "TEXT"),
@@ -90,29 +90,25 @@ def ensure_geo_columns(conn: sqlite3.Connection):
         ("longitude", "REAL"),
         ("full_address", "TEXT"),
     ]
-    for col, typ in new_cols:
+    for col, typ in columns:
         if col not in existing:
             cur.execute(f"ALTER TABLE qualification ADD COLUMN {col} {typ}")
     conn.commit()
 
 def rotate_key(current_index: int) -> int:
-    """
-    Rotate to the next OpenCage API key index. 
-    If all keys are exhausted, waits and retries later.
-    """
+    """Rotate to the next API key index, waiting if all keys are exhausted."""
     next_index = (current_index + 1) % len(API_KEYS)
     if next_index == 0:
-        logger.warning("All OpenCage API keys may be exhausted — waiting 1 hour before retrying.")
+        logger.warning("All API keys may be exhausted. Waiting 1 hour before retrying.")
         time.sleep(3600)
-    logger.warning("Rotating to next OpenCage API key (index %d)", next_index)
+    logger.info("Rotating to next API key (index %d)", next_index)
     return next_index
-
 
 # ------------------------------------------------------------
 # OPENCAGE API LOGIC
 # ------------------------------------------------------------
-
 def geocode_institution(name: str, api_key: str) -> Optional[dict]:
+    """Query OpenCage API and return geolocation information."""
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             params = {"q": name, "key": api_key, "limit": 1}
@@ -125,31 +121,28 @@ def geocode_institution(name: str, api_key: str) -> Optional[dict]:
                 res = data["results"][0]
                 components = res.get("components") or {}
                 geometry = res.get("geometry") or {}
-                # safe extraction
-                country = components.get("country") or None
-                state = components.get("state") or None
-                city = components.get("city") or components.get("town") or components.get("village") or None
+                city = components.get("city") or components.get("town") or components.get("village")
                 return {
-                    "country": country,
-                    "state": state,
+                    "country": components.get("country"),
+                    "state": components.get("state"),
                     "city": city,
                     "latitude": geometry.get("lat"),
                     "longitude": geometry.get("lng"),
                     "full_address": res.get("formatted"),
                 }
+            # Return empty geo data if no results
             return {k: None for k in ["country","state","city","latitude","longitude","full_address"]}
         except requests.RequestException as e:
             logger.warning("Retry %d for %s: %s", attempt, name, e)
             time.sleep(2)
-    # if all retries fail
     return {k: None for k in ["country","state","city","latitude","longitude","full_address"]}
-    
+
 # ------------------------------------------------------------
-# SINGLE INSTITUTE DB UPDATE (sequentially)
+# UPDATE DATABASE
 # ------------------------------------------------------------
 def update_institute_db(institute_name: str):
-    safe_name = safe_filename(institute_name)
-    db_path = os.path.join(DB_DIR, f"{safe_name}_profiles.db")
+    """Update geolocation data for a single institute database."""
+    db_path = os.path.join(DB_DIR, f"{safe_filename(institute_name)}_profiles.db")
     if not os.path.exists(db_path):
         logger.warning("Database not found for %s", institute_name)
         return
@@ -164,28 +157,17 @@ def update_institute_db(institute_name: str):
         institutions = [r[0] for r in cur.fetchall()]
 
         key_idx = 0
-        updated = 0
+        updated_count = 0
 
         for inst in institutions:
             try:
-                # Clean institution name for OpenCage query
-                query_name = inst.replace(",", "").strip()
-                geo = geocode_institution(query_name, API_KEYS[key_idx])
-                logger.debug("Geocode result for %s: %s", query_name, geo)
-
-                # If quota exceeded, rotate key and retry
+                geo = geocode_institution(inst.strip(), API_KEYS[key_idx])
                 if geo == {"quota_exceeded": True}:
                     key_idx = rotate_key(key_idx)
-                    geo = geocode_institution(query_name, API_KEYS[key_idx])
-                    logger.debug("Retry Geocode result for %s: %s", query_name, geo)
+                    geo = geocode_institution(inst.strip(), API_KEYS[key_idx])
 
-                # Make sure geo is a dict with all keys
-                if not isinstance(geo, dict):
-                    geo = {k: None for k in ["country","state","city","latitude","longitude","full_address"]}
-                else:
-                    # Fill missing keys with None
-                    for k in ["country","state","city","latitude","longitude","full_address"]:
-                        geo.setdefault(k, None)
+                for k in ["country","state","city","latitude","longitude","full_address"]:
+                    geo.setdefault(k, None)
 
                 cur.execute(
                     """
@@ -194,54 +176,43 @@ def update_institute_db(institute_name: str):
                     WHERE institution=?;
                     """,
                     (
-                        geo.get("country"),
-                        geo.get("state"),
-                        geo.get("city"),
-                        geo.get("latitude"),
-                        geo.get("longitude"),
-                        geo.get("full_address"),
+                        geo["country"],
+                        geo["state"],
+                        geo["city"],
+                        geo["latitude"],
+                        geo["longitude"],
+                        geo["full_address"],
                         inst,
                     ),
                 )
                 conn.commit()
-                updated += 1
+                updated_count += 1
                 logger.info("Updated %s (%s)", inst, institute_name)
-
             except Exception as e:
                 logger.error("Error updating %s: %s", inst, e)
-
             time.sleep(REQUEST_DELAY)
 
-        logger.info("Completed %s — %d institutions updated.", institute_name, updated)
-
-
-
-
+        logger.info("Completed %s — %d institutions updated.", institute_name, updated_count)
 
 # ------------------------------------------------------------
-# MULTITHREADING AT *_profiles.db LEVEL
+# MULTITHREADING
 # ------------------------------------------------------------
 def update_all_institutes(org_type: str):
+    """Update geolocation data for all institutes of a given type."""
     institutes = fetch_institutes_by_type(org_type)
     logger.info("Found %d institutes of type '%s'", len(institutes), org_type)
 
     if not institutes:
-        logger.info("No institutes to update.")
         return
 
-    # ---- Define number of threads ----
     n_threads = len(API_KEYS)
-
     with ThreadPoolExecutor(max_workers=n_threads) as executor:
         futures = {executor.submit(update_institute_db, name): name for name in institutes}
-
         for future in as_completed(futures):
-            name = futures[future]
             try:
                 future.result()
             except Exception as e:
-                logger.error("Error updating %s: %s", name, e)
-
+                logger.error("Error updating %s: %s", futures[future], e)
 
 # ------------------------------------------------------------
 # ENTRY POINT
@@ -251,7 +222,6 @@ def main():
     parser = argparse.ArgumentParser(description="Update qualification geolocation using OpenCage API.")
     parser.add_argument("--org-type", required=True, help="Organization type to process (e.g., 'University')")
     args = parser.parse_args()
-
     update_all_institutes(args.org_type)
 
 if __name__ == "__main__":

@@ -7,8 +7,6 @@ across multiple Indian institutes. It reads institute URLs from a
 SQLite database, crawls departmental and individual profile pages,
 and stores structured data into institute-specific SQLite databases.
 
-Author: Ayush Tripathi
-Date: 2025-10-21
 """
 
 from __future__ import annotations

@@ -1,0 +1,48 @@
+feature,importance
+experience_years,0.203066436830945
+num_publications,0.0891173092505202
+career_progression_score,0.08470583394364316
+Assistant Professor_x_exp,0.07749001321084145
+publications_per_year,0.07703123356040636
+exp_x_pub_per_year,0.07506555346037057
+total_citations,0.07009116121636329
+phd_to_cur_distance_km,0.06178126513000027
+h_index,0.05196220989167851
+Associate Professor_x_exp,0.046524761565675476
+career_x_pub,0.045311066973950966
+field_9,0.014844426643309505
+prev_inst_Other,0.011917634305708746
+field_0,0.010883810862027173
+Professor_x_exp,0.008675858266598032
+field_18,0.006935276587684908
+field_17,0.005479311678601595
+field_6,0.005311293747679473
+field_16,0.004791351410230328
+field_13,0.0044005410389407265
+field_12,0.0042710804350038715
+field_4,0.00405150134254708
+field_14,0.0039594509587834005
+field_1,0.003913758427594992
+field_7,0.003523325362227561
+field_8,0.003221867277630771
+field_5,0.0031276489623636257
+field_3,0.002955268606021786
+field_15,0.002239330520294889
+prev_inst_Indian Institute of Technology Delhi,0.0020240269207893622
+field_19,0.0016983139072713881
+field_10,0.001619816719481681
+prev_inst_Indian Institute of Technology Bombay,0.0014022207476839259
+field_2,0.0012258189280584097
+field_11,0.0012219488982167129
+prev_inst_Indian Institute of Technology (ISM) Dhanbad,0.001167063841798088
+"prev_inst_Indian Institute of Science, Bangalore",0.0006806166964224249
+prev_inst_Indian Institute of Technology Jodhpur,0.0005414828556364822
+prev_inst_Indian Institute of Technology Kanpur,0.00039678113711263583
+"prev_inst_Indian Institute of Technology, Guwahati",0.0003885501947968625
+"prev_inst_Indian Statistical Institute, Kolkata",0.0003859898352806866
+"prev_inst_Indian Institute of Science Education and Research, Pune",0.00030066929192829045
+prev_inst_Indian Institute of Technology Indore,0.0002971185578793141
+journal_pct,0.0
+conference_pct,0.0
+reviews_pct,0.0
+others_pct,0.0
