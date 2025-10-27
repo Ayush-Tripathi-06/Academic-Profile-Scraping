@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-IRINS Institute Scraper
 
-Fetches institute data from the IRINS portal, filters by
-specific categories (IITs, NITs, IIMs, IISERs, R&D Institutions, Other INIs),
-and stores the results in a fresh SQLite database.
 
 """
 
