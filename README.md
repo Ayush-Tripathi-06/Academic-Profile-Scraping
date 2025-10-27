@@ -17,4 +17,3 @@ predict_designation.py uses Random Forest Classifier for Academic Career Level P
 merge_data.py builds Researcher Career Flow Database and filters institutes by organization type and aggregates researcher career data.
 
 researcher_flows.py builds. Researcher Career Flow Database.Aggregates data from multiple *_profiles.db files (one per institute) and combines them with IRINS institute coordinates to create a single SQLite database.
-<img width="3126" height="621" alt="image" src="https://github.com/user-attachments/assets/84f4bc9d-9696-45ca-8355-29e85d7cef9d" />
