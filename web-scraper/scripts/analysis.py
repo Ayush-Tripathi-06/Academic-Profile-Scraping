@@ -7,7 +7,7 @@ Analyzes researcher career data from SQLite databases.
 Features:
 - Computes average and median metrics (overall and by designation/field)
 - Generates plots: experience histogram, gender pie chart, PhD country distribution
-- Outputs results to a new SQLite database and PNG charts per input database
+- Outputs results to a new SQLite database.
 """
 
 import os
